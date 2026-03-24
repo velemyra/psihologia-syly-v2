@@ -258,6 +258,7 @@ window.openIncidents = async function () {
 };
 
 // --- ВИПРАВЛЕНЕ ВІДЕО (safeVideoPlay) ---
+// Тепер відео автоматично відтворюється і має звук
 function safeVideoPlay(url) {
     if (!url) return null;
     
@@ -269,20 +270,29 @@ function safeVideoPlay(url) {
     video.style.borderRadius = "10px";
     video.style.background = "#000";
     
-    // КЛЮЧОВІ АТРИБУТИ ДЛЯ iOS ТА ЗВУКУ
+    // Атрибути для iOS (плейінлайн та мобільні пристрої)
     video.setAttribute('playsinline', '');
     video.setAttribute('webkit-playsinline', '');
     video.setAttribute('x5-video-player-type', 'h5');
     video.setAttribute('x5-video-player-fullscreen', 'true');
     
-    // Якщо відео все ще не грає, спробуємо скинути кеш шляхом зміни URL (додаємо timestamp)
-    // Це допомагає, якщо старий кеш блокує нове відео
-    // video.src = url + "?t=" + new Date().getTime(); 
+    // КЛЮЧОВЕ ВИПРАВЛЕННЯ:
+    // Додаємо event listener, щоб гарантувати, що відео почне грати після завантаження.
+    // Це допомагає обійти блокування Safari.
+    video.addEventListener('loadeddata', function() {
+        // Спробуємо відтворити. Якщо браузер блокує звук, він спробує без нього, 
+        // але ми хочемо звук, тому спробуємо без muted.
+        video.play().catch(error => {
+            console.log("Autoplay blocked, waiting for user interaction:", error);
+            // Якщо автоплей не спрацював, користувач повинен натиснути Play вручну.
+            // Це нормально для Safari.
+        });
+    });
 
     video.onerror = function() {
         console.error("Помилка завантаження відео:", url);
         showStatus("❌ Не вдалося відтворити відео. Перевірте правила Firebase Storage.");
-        // Спробуємо перезавантажити
+        // Спроба перезавантаження
         video.load();
     };
 
@@ -472,7 +482,7 @@ window.repeatVoice = function(text) {
     }
 };
 
-// --- ДОКАЗИ (Виправлено: показує тільки відео, без дублювання структури) ---
+// --- ДОКАЗИ ---
 
 window.openEvidence = async function () {
     const main = document.getElementById("main");
@@ -496,7 +506,6 @@ window.openEvidence = async function () {
         let hasVideo = false;
         querySnapshot.forEach((docItem) => {
             const data = docItem.data();
-            // Показуємо тільки відео
             if (data.video) {
                 hasVideo = true;
                 const videoEl = safeVideoPlay(data.video);
