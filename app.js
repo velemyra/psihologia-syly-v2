@@ -1,8 +1,9 @@
 import { initializeApp } from "https://www.gstatic.com/firebasejs/10.12.2/firebase-app.js";
-import { getAuth, signInWithEmailAndPassword, createUserWithEmailAndPassword, signOut, onAuthStateChanged } from "https://www.gstatic.com/firebasejs/10.12.2/firebase-auth.js";
-import { getFirestore, collection, addDoc, setDoc, doc, getDoc, getDocs, deleteDoc, query, where } from "https://www.gstatic.com/firebasejs/10.12.2/firebase-firestore.js";
+import { getAuth, signInWithEmailAndPassword, createUserWithEmailAndPassword, signOut, onAuthStateChanged, updateProfile } from "https://www.gstatic.com/firebasejs/10.12.2/firebase-auth.js";
+import { getFirestore, collection, addDoc, setDoc, doc, getDoc, getDocs, deleteDoc, query, where, orderBy } from "https://www.gstatic.com/firebasejs/10.12.2/firebase-firestore.js";
 import { getStorage, ref, uploadBytes, getDownloadURL } from "https://www.gstatic.com/firebasejs/10.12.2/firebase-storage.js";
 
+// 🔥 FIREBASE CONFIG
 const firebaseConfig = {
   apiKey: "AIzaSyAl39jZnayzFjiycLpksNwaTwx4uEIChE8",
   authDomain: "psihologia-syly.firebaseapp.com",
@@ -17,31 +18,30 @@ const auth = getAuth(app);
 const db = getFirestore(app);
 const storage = getStorage(app);
 
+// 🌐 ГЛОБАЛЬНІ ЗМІННІ
 let mediaRecorder;
 let currentStream;
 let sosStream;
+let currentProStatus = false;
+
+// ⚠️ ДЛЯ ВІДЛАДКИ
+window.auth = auth;
+window.db = db;
+window.storage = storage;
 
 // --- УТИЛІТИ ---
-
-window.showStatus = function(text) {
+window.showStatus = function(text, duration = 3000) {
     const status = document.getElementById("status");
     if (status) {
         status.innerText = text;
         status.style.display = "block";
-        setTimeout(() => { status.style.display = "none"; }, 3000);
+        setTimeout(() => { status.style.display = "none"; }, duration);
     } else {
         alert(text);
     }
 };
 
-// --- ДЕЛЕГУВАННЯ ПОДІЙ ---
-document.addEventListener('click', (e) => {
-    if (e.target.id === 'loginBtn') window.login();
-    if (e.target.id === 'registerBtn') window.register();
-});
-
 // --- АВТОРИЗАЦІЯ ---
-
 window.login = async function () {
   const email = document.getElementById("email").value;
   const password = document.getElementById("password").value;
@@ -50,8 +50,6 @@ window.login = async function () {
   try {
     await signInWithEmailAndPassword(auth, email, password);
     showStatus("Успішний вхід ✅");
-    document.getElementById("login").style.display = "none";
-    document.getElementById("main").style.display = "block";
   } catch (error) {
     showStatus("Помилка входу ❌: " + error.message);
   }
@@ -63,11 +61,13 @@ window.register = async function () {
   if (!email || !password) { showStatus("Введіть дані!"); return; }
 
   try {
-    await createUserWithEmailAndPassword(auth, email, password);
-    await setDoc(doc(db, "users", auth.currentUser.uid), {
+    const userCredential = await createUserWithEmailAndPassword(auth, email, password);
+    await setDoc(doc(db, "users", userCredential.user.uid), {
       email: email,
       pro: false,
-      createdAt: new Date()
+      createdAt: new Date(),
+      subscriptionId: null,
+      subscriptionExpiry: null
     });
     showStatus("Акаунт створено ✅");
   } catch (error) {
@@ -79,30 +79,52 @@ window.logout = async function () {
     try {
         await signOut(auth);
         showStatus("Ви вийшли 👋");
-        document.getElementById("main").style.display = "none";
-        document.getElementById("login").style.display = "block";
     } catch (error) {
         console.log(error.message);
     }
 };
 
-onAuthStateChanged(auth, (user) => {
+onAuthStateChanged(auth, async (user) => {
     if (user) {
-        document.getElementById("login").style.display = "none";
-        document.getElementById("main").style.display = "block";
+        document.getElementById("login-screen").style.display = "none";
+        document.getElementById("main-menu").style.display = "block";
+        
+        // Перевірка PRO статусу
+        const userDoc = await getDoc(doc(db, "users", user.uid));
+        if (userDoc.exists()) {
+            const data = userDoc.data();
+            currentProStatus = data.pro || false;
+            updateProUI();
+        }
     } else {
-        document.getElementById("login").style.display = "block";
-        document.getElementById("main").style.display = "none";
+        document.getElementById("login-screen").style.display = "block";
+        document.getElementById("main-menu").style.display = "none";
     }
 });
 
-// --- PRO ФУНКЦІЇ ---
+function updateProUI() {
+    const proStatus = document.getElementById("pro-status");
+    if (proStatus) {
+        if (currentProStatus) {
+            proStatus.innerHTML = `<div class="pro-active">👑 PRO АКТИВОВАНО</div>`;
+            document.querySelectorAll(".pro-only").forEach(el => el.style.display = "flex");
+        } else {
+            proStatus.innerHTML = `<div class="pro-inactive">🔒 PRO ФУНКЦІЇ ДОСТУПНІ В ПЛАТНІЙ ВЕРСІЇ</div>`;
+            document.querySelectorAll(".pro-only").forEach(el => el.style.display = "none");
+        }
+    }
+}
 
+// --- PRO ФУНКЦІЇ ---
 window.activatePro = async function () {
     if (!auth.currentUser) { alert("Спочатку увійди ❗"); return; }
+    
+    // ТУТ МОЖНА ДОДАТИ ІНТЕГРАЦІЮ З ПЛАТЕЖНОЮ СИСТЕМОЮ (Stripe/PayPal)
     const confirm = window.confirm("Ви хочете активувати PRO? (Це демо-режим)");
     if (confirm) {
-        await setDoc(doc(db, "users", auth.currentUser.uid), { pro: true }, { merge: true });
+        await setDoc(doc(db, "users", auth.currentUser.uid), { pro: true, proActivatedAt: new Date() }, { merge: true });
+        currentProStatus = true;
+        updateProUI();
         showStatus("PRO активовано 🚀");
     }
 };
@@ -111,21 +133,57 @@ window.checkPro = async function () {
     if (!auth.currentUser) { alert("Спочатку увійди ❗"); return; }
     const userDoc = await getDoc(doc(db, "users", auth.currentUser.uid));
     if (userDoc.exists() && userDoc.data().pro) showStatus("PRO активовано 🔥");
-    else showStatus("У тебе немає PRO ❌");
+    else showStatus("У вас немає PRO ❌");
 };
 
-window.proFeature = async function () {
+window.openProFeatures = async function () {
     if (!auth.currentUser) { alert("Спочатку увійди ❗"); return; }
+    
     const userDoc = await getDoc(doc(db, "users", auth.currentUser.uid));
-    if (userDoc.exists() && userDoc.data().pro) showStatus("Доступ дозволено 🚀");
-    else showStatus("Це PRO функція 🔒");
+    if (userDoc.exists() && userDoc.data().pro) {
+        showStatus("Доступ дозволено 🚀");
+        // Відкрити список PRO функцій
+        openProFeaturesScreen();
+    } else {
+        showStatus("Це PRO функція 🔒");
+    }
 };
+
+function openProFeaturesScreen() {
+    const menu = document.getElementById("main-menu");
+    menu.innerHTML = `
+        <button onclick="goBackToMenu()">⬅ Назад</button>
+        <h2>👑 PRO ФУНКЦІЇ</h2>
+        <div class="pro-features-grid">
+            <div class="pro-feature">
+                <div class="icon">🎥</div>
+                <div>Безлімітні відео</div>
+                <div class="pro-tag">ПРО</div>
+            </div>
+            <div class="pro-feature">
+                <div class="icon">🔊</div>
+                <div>Висока якість звуку</div>
+                <div class="pro-tag">ПРО</div>
+            </div>
+            <div class="pro-feature">
+                <div class="icon">☁️</div>
+                <div>Хмарне сховище 100GB</div>
+                <div class="pro-tag">ПРО</div>
+            </div>
+            <div class="pro-feature">
+                <div class="icon">🔒</div>
+                <div>Захист даних</div>
+                <div class="pro-tag">ПРО</div>
+            </div>
+        </div>
+        <button onclick="activatePro()">👑 Активувати PRO</button>
+    `;
+}
 
 // --- ПОЛІЦІЯ ТА АУДІО ---
-
 window.openPolice = function () {
-  document.getElementById("main").innerHTML = `
-    <button onclick="goBack()">⬅ Назад</button>
+  document.getElementById("main-menu").innerHTML = `
+    <button onclick="goBackToMenu()">⬅ Назад</button>
     <h2>🚓 Мене зупинила поліція</h2>
     <p>1. Увімкніть відеофіксацію</p>
     <p>2. Поліцейський має назвати причину</p>
@@ -165,8 +223,8 @@ window.recordAudio = async function () {
             await addDoc(collection(db, "incidents"), {
                 userId: user.uid,
                 type: "police_stop",
-                createdAt: new Date(),
-                audio: audioURL
+                audio: audioURL,
+                createdAt: new Date()
             });
 
             currentStream.getTracks().forEach(track => track.stop());
@@ -201,27 +259,47 @@ window.stopRecording = function () {
 };
 
 // --- ІНЦИДЕНТИ ---
-
-window.goBack = function () {
-    document.getElementById("main").innerHTML = `
-        <p>Розум — це твоя зброя</p>
-        <div class="sos" onclick="startSOS()">
-            SOS <div>ЕКСТРЕНИЙ РЕЖИМ</div>
+window.goBackToMenu = function () {
+    document.getElementById("main-menu").style.display = "flex";
+    document.getElementById("main-menu").innerHTML = `
+      <h1>🧠 ПСИХОЛОГІЯ СИЛИ</h1>
+      <div id="pro-status" class="pro-status"></div>
+      
+      <div class="menu-grid">
+        <div class="menu-item" onclick="startSOS()">
+          <div class="icon">🚨</div>
+          <div>ЕКСТРЕНИЙ РЕЖИМ</div>
         </div>
-        <button onclick="activatePro()">Активувати PRO</button>
-        <button onclick="checkPro()">Перевірити PRO</button>
-        <button onclick="proFeature()">PRO функція</button>
-        <button onclick="openPolice()">🚓 Мене зупинила поліція</button>
-        <button onclick="openIncidents()">📂 Мої інциденти</button>
-        <button onclick="logout()">Вийти</button>
+        <div class="menu-item" onclick="openPolice()">
+          <div class="icon">🚓</div>
+          <div>ПІД ТИСКОМ</div>
+        </div>
+        <div class="menu-item" onclick="openIncidents()">
+          <div class="icon">📂</div>
+          <div>ІНЦИДЕНТИ</div>
+        </div>
+        <div class="menu-item pro-only" onclick="activatePro()">
+          <div class="icon">👑</div>
+          <div>ПРО АКТИВАЦІЯ</div>
+        </div>
+        <div class="menu-item pro-only" onclick="openProFeatures()">
+          <div class="icon">⭐</div>
+          <div>ПРО ФУНКЦІЇ</div>
+        </div>
+        <div class="menu-item" onclick="logout()">
+          <div class="icon">🚪</div>
+          <div>Вийти</div>
+        </div>
+      </div>
     `;
+    updateProUI();
 };
 
 window.openIncidents = async function () {
   const user = auth.currentUser;
   if (!user) { showStatus("Користувач не знайдений"); return; }
 
-  const q = query(collection(db, "incidents"), where("userId", "==", user.uid));
+  const q = query(collection(db, "incidents"), where("userId", "==", user.uid), orderBy("createdAt", "desc"));
   const querySnapshot = await getDocs(q);
   
   let incidents = [];
@@ -230,9 +308,7 @@ window.openIncidents = async function () {
     incidents.push({ id: docItem.id, ...data });
   });
 
-  incidents.sort((a, b) => b.createdAt.seconds - a.createdAt.seconds);
-
-  let html = "<button onclick='goBack()'>← Назад</button>";
+  let html = "<button onclick='goBackToMenu()'>← Назад</button>";
   html += "<h2>📂 Мої інциденти</h2>";
 
   if (incidents.length === 0) {
@@ -250,44 +326,8 @@ window.openIncidents = async function () {
         </div>`;
       });
   }
-  document.getElementById("main").innerHTML = html;
+  document.getElementById("main-menu").innerHTML = html;
 };
-
-// --- ВИПРАВЛЕНЕ ВІДЕО (safeVideoPlay) ---
-function safeVideoPlay(url) {
-    if (!url) return null;
-    
-    const video = document.createElement('video');
-    video.src = url;
-    video.controls = true;
-    video.style.width = "100%";
-    video.style.margin = "10px 0";
-    video.style.borderRadius = "10px";
-    video.style.background = "#000";
-    
-    video.setAttribute('playsinline', '');
-    video.setAttribute('webkit-playsinline', '');
-    video.setAttribute('x5-video-player-type', 'h5');
-    video.setAttribute('x5-video-player-fullscreen', 'true');
-    
-    video.muted = false;
-    video.setAttribute('autoplay', '');
-    video.setAttribute('playsinline', '');
-
-    video.addEventListener('loadeddata', function() {
-        video.play().catch(error => {
-            console.log("Autoplay blocked, waiting for user interaction:", error);
-        });
-    });
-
-    video.onerror = function() {
-        console.error("Помилка завантаження відео:", url);
-        showStatus("❌ Не вдалося відтворити відео. Перевірте правила Firebase Storage.");
-        video.load();
-    };
-
-    return video;
-}
 
 window.openIncident = async function (id) {
     const docSnap = await getDoc(doc(db, "incidents", id));
@@ -297,7 +337,7 @@ window.openIncident = async function (id) {
     let typeText = data.type === "police_stop" ? "🚓 Зупинка поліції" : (data.type || "Інцидент");
 
     let content = `
-        <button onclick="goBack()">← Назад</button>
+        <button onclick="goBackToMenu()">← Назад</button>
         <h2>📄 Деталі інциденту</h2>
         <p><b>${typeText}</b></p>
         <p>📅 ${new Date(data.createdAt.seconds * 1000).toLocaleString()}</p>
@@ -308,15 +348,30 @@ window.openIncident = async function (id) {
     }
     
     if (data.video) {
-        const videoEl = safeVideoPlay(data.video);
+        const videoEl = createVideoElement(data.video);
         if (videoEl) {
             content += videoEl.outerHTML;
         }
     }
 
     content += `<button onclick="deleteIncident('${id}')">❌ Видалити</button>`;
-    document.getElementById("main").innerHTML = content;
+    document.getElementById("main-menu").innerHTML = content;
 };
+
+function createVideoElement(url) {
+    if (!url) return null;
+    const video = document.createElement('video');
+    video.src = url;
+    video.controls = true;
+    video.style.width = "100%";
+    video.style.margin = "10px 0";
+    video.style.borderRadius = "10px";
+    video.style.background = "#000";
+    video.muted = false;
+    video.setAttribute('playsinline', '');
+    video.setAttribute('webkit-playsinline', '');
+    return video;
+}
 
 window.deleteIncident = async function(id) {
     try {
@@ -328,11 +383,10 @@ window.deleteIncident = async function(id) {
     }
 };
 
-// --- SOS ФУНКЦІЯ ---
-
+// --- SOS ФУНКЦІЯ (ВІДЕО ЗІ ЗВУКОМ) ---
 window.startSOS = async function () {
-    const main = document.getElementById("main");
-    main.innerHTML = "";
+    const menu = document.getElementById("main-menu");
+    menu.innerHTML = "";
 
     const container = document.createElement("div");
     container.className = "sos-screen";
@@ -352,12 +406,13 @@ window.startSOS = async function () {
         </div>
     `;
 
-    main.appendChild(container);
+    menu.appendChild(container);
     const video = document.getElementById("sosVideo");
     let currentFacing = "user";
 
     try {
         async function startCamera() {
+            // 🔥 КЛЮЧОВЕ ВИПРАВЛЕННЯ: audio: true
             const stream = await navigator.mediaDevices.getUserMedia({
                 video: { facingMode: currentFacing },
                 audio: true
@@ -378,7 +433,7 @@ window.startSOS = async function () {
         const backBtn = document.getElementById("backBtn");
         backBtn.onclick = () => {
             if (sosStream) sosStream.getTracks().forEach(track => track.stop());
-            goBack();
+            goBackToMenu();
         };
 
         const recordBtn = document.getElementById("recordBtn");
@@ -411,7 +466,7 @@ window.startSOS = async function () {
                         video.srcObject.getTracks().forEach(track => track.stop());
                     }
                     video.srcObject = null;
-                    goBack();
+                    goBackToMenu();
                 };
 
                 mediaRecorder.start();
@@ -426,12 +481,11 @@ window.startSOS = async function () {
     } catch (e) {
         alert("❌ Не вдалося включити камеру: " + e.message);
         console.error(e);
-        goBack();
+        goBackToMenu();
     }
 };
 
 // --- ГЛОСОВЕ ОПОВІЩЕННЯ (TTS) ---
-
 window.runLine = function(el) {
     let text = el.innerText.split('\n')[0].trim();
     text = text.replace("📜", "").trim();

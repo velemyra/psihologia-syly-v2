@@ -6,7 +6,7 @@
   <meta name="apple-mobile-web-app-capable" content="yes">
   <meta name="mobile-web-app-capable" content="yes">
   <meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
-  <title>Психологія сили</title>
+  <title>Психологія Сили PRO</title>
 
   <link rel="icon" href="icon.png">
   <link rel="apple-touch-icon" href="icon.png">
@@ -16,35 +16,55 @@
   <meta name="theme-color" content="#000000" />
 </head>
 <body>
-<div id="app">
-  <h1>ПСИХОЛОГІЯ СИЛИ</h1>
-
-  <div id="login">
-    <input id="email" placeholder="Email" type="email"><br><br>
-    <input id="password" placeholder="Пароль" type="password"><br><br>
-    <button id="loginBtn" style="width:80%;">Увійти</button>
-    <button id="registerBtn" style="width:80%;">Реєстрація</button>
-  </div>
-
-  <div id="main" style="display:none;">
-    <p>Розум — це твоя зброя</p>
-    <div class="sos" onclick="startSOS()">
-      SOS
-      <div>ЕКСТРЕНИЙ РЕЖИМ</div>
+  <div id="status" class="status"></div>
+  
+  <div id="app">
+    <!-- LOGIN SCREEN -->
+    <div id="login-screen">
+      <h1>🔐 ПСИХОЛОГІЯ СИЛИ PRO</h1>
+      <div class="login-container">
+        <input id="email" placeholder="Email" type="email" />
+        <input id="password" placeholder="Пароль" type="password" />
+        <button id="loginBtn">Увійти</button>
+        <button id="registerBtn">Реєстрація</button>
+      </div>
+      <p class="pro-badge">👑 PRO версія доступна</p>
     </div>
-    <button onclick="activatePro()">Активувати PRO</button>
-    <button onclick="checkPro()">Перевірити PRO</button>
-    <button onclick="proFeature()">PRO функція</button>
-    <button onclick="openPolice()">🚓 Мене зупинила поліція</button>
-    <button onclick="openIncidents()">📂 Мої інциденти</button>
-    <!-- Кнопка ДОКАЗИ ВИДАЛЕНА -->
-    <button onclick="logout()">Вийти</button>
+
+    <!-- MAIN MENU -->
+    <div id="main-menu" style="display:none;">
+      <h1>🧠 ПСИХОЛОГІЯ СИЛИ</h1>
+      <div id="pro-status" class="pro-status"></div>
+      
+      <div class="menu-grid">
+        <div class="menu-item" onclick="startSOS()">
+          <div class="icon">🚨</div>
+          <div>ЕКСТРЕНИЙ РЕЖИМ</div>
+        </div>
+        <div class="menu-item" onclick="openPolice()">
+          <div class="icon">🚓</div>
+          <div>ПІД ТИСКОМ</div>
+        </div>
+        <div class="menu-item" onclick="openIncidents()">
+          <div class="icon">📂</div>
+          <div>ІНЦИДЕНТИ</div>
+        </div>
+        <div class="menu-item pro-only" onclick="activatePro()">
+          <div class="icon">👑</div>
+          <div>ПРО АКТИВАЦІЯ</div>
+        </div>
+        <div class="menu-item pro-only" onclick="openProFeatures()">
+          <div class="icon">⭐</div>
+          <div>ПРО ФУНКЦІЇ</div>
+        </div>
+        <div class="menu-item" onclick="logout()">
+          <div class="icon">🚪</div>
+          <div>Вийти</div>
+        </div>
+      </div>
+    </div>
   </div>
-</div>
 
-<div id="status" class="status"></div>
-
-<script type="module" src="app.js"></script>
-
+  <script type="module" src="app.js?v=3.0.0"></script>
 </body>
 </html>
