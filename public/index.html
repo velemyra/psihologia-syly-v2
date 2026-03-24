@@ -1,0 +1,86 @@
+<!DOCTYPE html>
+<html lang="uk">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no, viewport-fit=cover" />
+  <meta name="apple-mobile-web-app-capable" content="yes">
+  <meta name="mobile-web-app-capable" content="yes">
+  <meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
+  <title>Психологія сили</title>
+
+  <link rel="icon" href="icon.png">
+  <link rel="apple-touch-icon" href="icon.png">
+  <link rel="manifest" href="manifest.json">
+  <link rel="stylesheet" href="style.css">
+
+  <meta name="theme-color" content="#000000" />
+</head>
+<body>
+<div id="app">
+  <h1>ПСИХОЛОГІЯ СИЛИ</h1>
+
+  <div id="login">
+    <input id="email" placeholder="Email" type="email"><br><br>
+    <input id="password" placeholder="Пароль" type="password"><br><br>
+    <button id="loginBtn" style="width:80%;">Увійти</button>
+    <button id="registerBtn" style="width:80%;">Реєстрація</button>
+  </div>
+
+  <div id="main" style="display:none;">
+    <p>Розум — це твоя зброя</p>
+    <div class="sos" onclick="startSOS()">
+      SOS
+      <div>ЕКСТРЕНИЙ РЕЖИМ</div>
+    </div>
+    <button onclick="activatePro()">Активувати PRO</button>
+    <button onclick="checkPro()">Перевірити PRO</button>
+    <button onclick="proFeature()">PRO функція</button>
+    <button onclick="openPolice()">🚓 Мене зупинила поліція</button>
+    <button onclick="openIncidents()">📂 Мої інциденти</button>
+    <button id="evidenceBtn">📁 ДОКАЗИ</button>
+    <button onclick="logout()">Вийти</button>
+  </div>
+</div>
+
+<div id="status" class="status"></div>
+
+<script type="module" src="app.js"></script>
+
+<script>
+// ✅ Реєстрація Service Worker (для Vercel)
+if ('serviceWorker' in navigator) {
+  window.addEventListener('load', async () => {
+    try {
+      const reg = await navigator.serviceWorker.register('/sw.js');
+      console.log('✅ Service Worker зареєстровано:', reg.scope);
+
+      // Перевірка оновлень
+      if (reg.waiting) showUpdatePrompt(reg);
+      reg.addEventListener('updatefound', () => {
+        const newWorker = reg.installing;
+        if (!newWorker) return;
+        newWorker.addEventListener('statechange', () => {
+          if (newWorker.state === 'installed' && navigator.serviceWorker.controller) {
+            showUpdatePrompt(reg);
+          }
+        });
+      });
+    } catch (err) {
+      console.error('❌ Помилка SW:', err);
+    }
+  });
+
+  function showUpdatePrompt(reg) {
+    if (confirm("⚡ Доступна нова версія програми. Оновити зараз?")) {
+      if (reg.waiting) reg.waiting.postMessage('checkForUpdate');
+      window.location.reload();
+    }
+  }
+}
+
+// 🔵 Індикація онлайн/офлайн
+window.addEventListener('online', () => showStatus('🔵 Підключення відновлено'));
+window.addEventListener('offline', () => showStatus('⚠️ Немає інтернету — офлайн режим'));
+</script>
+</body>
+</html>
