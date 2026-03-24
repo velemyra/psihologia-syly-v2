@@ -46,41 +46,12 @@
 
 <script type="module" src="app.js"></script>
 
-<script>
-// ✅ Реєстрація Service Worker (для Vercel)
-if ('serviceWorker' in navigator) {
-  window.addEventListener('load', async () => {
-    try {
-      const reg = await navigator.serviceWorker.register('/sw.js');
-      console.log('✅ Service Worker зареєстровано:', reg.scope);
+<!-- 
+  ⚠️ ВІДСТУПОК: 
+  Ми НЕ використовуємо Service Worker (SW), щоб уникнути помилок на Vercel.
+  Це дозволяє відео та звуку працювати стабільно без конфлікту кешування.
+  Додаток працює онлайн, що є критичним для завантаження відео з Firebase.
+-->
 
-      // Перевірка оновлень
-      if (reg.waiting) showUpdatePrompt(reg);
-      reg.addEventListener('updatefound', () => {
-        const newWorker = reg.installing;
-        if (!newWorker) return;
-        newWorker.addEventListener('statechange', () => {
-          if (newWorker.state === 'installed' && navigator.serviceWorker.controller) {
-            showUpdatePrompt(reg);
-          }
-        });
-      });
-    } catch (err) {
-      console.error('❌ Помилка SW:', err);
-    }
-  });
-
-  function showUpdatePrompt(reg) {
-    if (confirm("⚡ Доступна нова версія програми. Оновити зараз?")) {
-      if (reg.waiting) reg.waiting.postMessage('checkForUpdate');
-      window.location.reload();
-    }
-  }
-}
-
-// 🔵 Індикація онлайн/офлайн
-window.addEventListener('online', () => showStatus('🔵 Підключення відновлено'));
-window.addEventListener('offline', () => showStatus('⚠️ Немає інтернету — офлайн режим'));
-</script>
 </body>
 </html>
