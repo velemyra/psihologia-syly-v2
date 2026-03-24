@@ -38,7 +38,6 @@ window.showStatus = function(text) {
 document.addEventListener('click', (e) => {
     if (e.target.id === 'loginBtn') window.login();
     if (e.target.id === 'registerBtn') window.register();
-    if (e.target.id === 'evidenceBtn') window.openEvidence();
 });
 
 // --- АВТОРИЗАЦІЯ ---
@@ -214,11 +213,8 @@ window.goBack = function () {
         <button onclick="proFeature()">PRO функція</button>
         <button onclick="openPolice()">🚓 Мене зупинила поліція</button>
         <button onclick="openIncidents()">📂 Мої інциденти</button>
-        <button id="evidenceBtn">📁 ДОКАЗИ</button>
         <button onclick="logout()">Вийти</button>
     `;
-    const btn = document.getElementById("evidenceBtn");
-    if(btn) btn.onclick = window.openEvidence;
 };
 
 window.openIncidents = async function () {
@@ -258,7 +254,6 @@ window.openIncidents = async function () {
 };
 
 // --- ВИПРАВЛЕНЕ ВІДЕО (safeVideoPlay) ---
-// Тепер відео автоматично відтворюється і має звук
 function safeVideoPlay(url) {
     if (!url) return null;
     
@@ -270,29 +265,24 @@ function safeVideoPlay(url) {
     video.style.borderRadius = "10px";
     video.style.background = "#000";
     
-    // Атрибути для iOS (плейінлайн та мобільні пристрої)
     video.setAttribute('playsinline', '');
     video.setAttribute('webkit-playsinline', '');
     video.setAttribute('x5-video-player-type', 'h5');
     video.setAttribute('x5-video-player-fullscreen', 'true');
     
-    // КЛЮЧОВЕ ВИПРАВЛЕННЯ:
-    // Додаємо event listener, щоб гарантувати, що відео почне грати після завантаження.
-    // Це допомагає обійти блокування Safari.
+    video.muted = false;
+    video.setAttribute('autoplay', '');
+    video.setAttribute('playsinline', '');
+
     video.addEventListener('loadeddata', function() {
-        // Спробуємо відтворити. Якщо браузер блокує звук, він спробує без нього, 
-        // але ми хочемо звук, тому спробуємо без muted.
         video.play().catch(error => {
             console.log("Autoplay blocked, waiting for user interaction:", error);
-            // Якщо автоплей не спрацював, користувач повинен натиснути Play вручну.
-            // Це нормально для Safari.
         });
     });
 
     video.onerror = function() {
         console.error("Помилка завантаження відео:", url);
         showStatus("❌ Не вдалося відтворити відео. Перевірте правила Firebase Storage.");
-        // Спроба перезавантаження
         video.load();
     };
 
@@ -313,12 +303,10 @@ window.openIncident = async function (id) {
         <p>📅 ${new Date(data.createdAt.seconds * 1000).toLocaleString()}</p>
     `;
 
-    // Аудіо
     if (data.audio) {
         content += `<audio controls src="${data.audio}" style="width:100%; margin: 10px 0;"></audio>`;
     }
     
-    // Відео
     if (data.video) {
         const videoEl = safeVideoPlay(data.video);
         if (videoEl) {
@@ -372,7 +360,7 @@ window.startSOS = async function () {
         async function startCamera() {
             const stream = await navigator.mediaDevices.getUserMedia({
                 video: { facingMode: currentFacing },
-                audio: false
+                audio: true
             });
             video.srcObject = stream;
             return stream;
@@ -480,45 +468,4 @@ window.repeatVoice = function(text) {
     } catch (e) {
         console.log("voice error", e);
     }
-};
-
-// --- ДОКАЗИ ---
-
-window.openEvidence = async function () {
-    const main = document.getElementById("main");
-    main.innerHTML = "";
-
-    const user = auth.currentUser;
-    if (!user) { alert("Спочатку увійди"); return; }
-
-    const q = query(collection(db, "incidents"), where("userId", "==", user.uid));
-    const querySnapshot = await getDocs(q);
-
-    const container = document.createElement("div");
-    container.innerHTML = `
-        <h2 style="color:white;">📁 ДОКАЗИ</h2>
-        <button onclick="goBack()">← Назад</button>
-    `;
-
-    if (querySnapshot.empty) {
-        container.innerHTML += "<p>Доказів немає.</p>";
-    } else {
-        let hasVideo = false;
-        querySnapshot.forEach((docItem) => {
-            const data = docItem.data();
-            if (data.video) {
-                hasVideo = true;
-                const videoEl = safeVideoPlay(data.video);
-                if (videoEl) {
-                    container.appendChild(videoEl);
-                }
-            }
-        });
-        
-        if (!hasVideo) {
-            container.innerHTML += "<p>У вас немає відео-доказів.</p>";
-        }
-    }
-
-    main.appendChild(container);
 };

@@ -4,8 +4,8 @@ body {
   background: black;
   color: white;
   text-align: center;
-  user-select: none; /* Заборона виділення тексту на iOS */
-  touch-action: manipulation; /* Оптимізація натискань */
+  user-select: none;
+  touch-action: manipulation;
 }
 
 h1 {
@@ -37,7 +37,7 @@ button {
   border-radius: 12px;
   cursor: pointer;
   transition: 0.3s;
-  -webkit-tap-highlight-color: transparent; /* Прибирає синій фон при натисканні на iOS */
+  -webkit-tap-highlight-color: transparent;
 }
 
 button:active {
@@ -147,11 +147,10 @@ button:active {
   position: relative;
   background: #111;
   overflow: hidden;
-  /* Для iOS: відео має займати всю доступну область без чорних смуг */
 }
 
 .sos-questions {
-  height: 50%; /* Збільшили висоту для кращого перегляду */
+  height: 50%;
   padding: 15px;
   background: #000;
   border-top: 2px solid red;
@@ -172,4 +171,24 @@ button:active {
 
 .sos-questions div:active {
     background: #222;
+}
+
+/* Додаткові стилі для відео та аудіо */
+video {
+    width: 100%;
+    border-radius: 10px;
+    background: #000;
+}
+
+audio {
+    width: 100%;
+    margin: 10px 0;
+}
+
+#status {
+    display: none;
+}
+
+#status:empty {
+    display: none;
 }
