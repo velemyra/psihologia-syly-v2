@@ -1,6 +1,6 @@
 import { initializeApp } from "https://www.gstatic.com/firebasejs/10.12.2/firebase-app.js";
 import { getAuth, signInWithEmailAndPassword, createUserWithEmailAndPassword, signOut, onAuthStateChanged, updateProfile } from "https://www.gstatic.com/firebasejs/10.12.2/firebase-auth.js";
-import { getFirestore, collection, addDoc, setDoc, doc, getDoc, getDocs, deleteDoc, query, where, orderBy } from "https://www.gstatic.com/firebasejs/10.12.2/firebase-firestore.js";
+import { getFirestore, collection, addDoc, setDoc, doc, getDoc, getDocs, deleteDoc, query, where } from "https://www.gstatic.com/firebasejs/10.12.2/firebase-firestore.js";
 import { getStorage, ref, uploadBytes, getDownloadURL } from "https://www.gstatic.com/firebasejs/10.12.2/firebase-storage.js";
 
 // 🔥 FIREBASE CONFIG
@@ -119,7 +119,6 @@ function updateProUI() {
 window.activatePro = async function () {
     if (!auth.currentUser) { alert("Спочатку увійди ❗"); return; }
     
-    // ТУТ МОЖНА ДОДАТИ ІНТЕГРАЦІЮ З ПЛАТЕЖНОЮ СИСТЕМОЮ (Stripe/PayPal)
     const confirm = window.confirm("Ви хочете активувати PRO? (Це демо-режим)");
     if (confirm) {
         await setDoc(doc(db, "users", auth.currentUser.uid), { pro: true, proActivatedAt: new Date() }, { merge: true });
@@ -142,7 +141,6 @@ window.openProFeatures = async function () {
     const userDoc = await getDoc(doc(db, "users", auth.currentUser.uid));
     if (userDoc.exists() && userDoc.data().pro) {
         showStatus("Доступ дозволено 🚀");
-        // Відкрити список PRO функцій
         openProFeaturesScreen();
     } else {
         showStatus("Це PRO функція 🔒");
@@ -258,7 +256,7 @@ window.stopRecording = function () {
     document.getElementById("stopBtn").style.display = "none";
 };
 
-// --- ІНЦИДЕНТИ ---
+// --- ІНЦИДЕНТИ (ОСНОВНА ЗМІНА - БЕЗ ORDER BY) ---
 window.goBackToMenu = function () {
     document.getElementById("main-menu").style.display = "flex";
     document.getElementById("main-menu").innerHTML = `
@@ -299,7 +297,8 @@ window.openIncidents = async function () {
   const user = auth.currentUser;
   if (!user) { showStatus("Користувач не знайдений"); return; }
 
-  const q = query(collection(db, "incidents"), where("userId", "==", user.uid), orderBy("createdAt", "desc"));
+  // ✅ ВИДАЛЕНО orderBy - тепер лише where
+  const q = query(collection(db, "incidents"), where("userId", "==", user.uid));
   const querySnapshot = await getDocs(q);
   
   let incidents = [];
@@ -307,6 +306,9 @@ window.openIncidents = async function () {
     const data = docItem.data();
     incidents.push({ id: docItem.id, ...data });
   });
+
+  // ✅ ВІДСОРТУВАТИ ВРУЧНУ ПОСЛЯ ОТРИМАННЯ ДАНИХ
+  incidents.sort((a, b) => b.createdAt.seconds - a.createdAt.seconds);
 
   let html = "<button onclick='goBackToMenu()'>← Назад</button>";
   html += "<h2>📂 Мої інциденти</h2>";
