@@ -1,5 +1,5 @@
 import { initializeApp } from "https://www.gstatic.com/firebasejs/10.12.2/firebase-app.js";
-import { getAuth, signInWithEmailAndPassword, createUserWithEmailAndPassword, signOut, onAuthStateChanged, updateProfile } from "https://www.gstatic.com/firebasejs/10.12.2/firebase-auth.js";
+import { getAuth, signInWithEmailAndPassword, createUserWithEmailAndPassword, signOut, onAuthStateChanged } from "https://www.gstatic.com/firebasejs/10.12.2/firebase-auth.js";
 import { getFirestore, collection, addDoc, setDoc, doc, getDoc, getDocs, deleteDoc, query, where } from "https://www.gstatic.com/firebasejs/10.12.2/firebase-firestore.js";
 import { getStorage, ref, uploadBytes, getDownloadURL } from "https://www.gstatic.com/firebasejs/10.12.2/firebase-storage.js";
 
@@ -52,6 +52,7 @@ window.login = async function () {
     showStatus("Успішний вхід ✅");
   } catch (error) {
     showStatus("Помилка входу ❌: " + error.message);
+    console.error("Login error:", error);
   }
 };
 
@@ -72,6 +73,7 @@ window.register = async function () {
     showStatus("Акаунт створено ✅");
   } catch (error) {
     showStatus("Помилка реєстрації ❌: " + error.message);
+    console.error("Register error:", error);
   }
 };
 
@@ -85,16 +87,20 @@ window.logout = async function () {
 };
 
 onAuthStateChanged(auth, async (user) => {
+    console.log("Auth state changed:", user);
     if (user) {
         document.getElementById("login-screen").style.display = "none";
-        document.getElementById("main-menu").style.display = "block";
+        document.getElementById("main-menu").style.display = "flex";
         
-        // Перевірка PRO статусу
-        const userDoc = await getDoc(doc(db, "users", user.uid));
-        if (userDoc.exists()) {
-            const data = userDoc.data();
-            currentProStatus = data.pro || false;
-            updateProUI();
+        try {
+            const userDoc = await getDoc(doc(db, "users", user.uid));
+            if (userDoc.exists()) {
+                const data = userDoc.data();
+                currentProStatus = data.pro || false;
+                updateProUI();
+            }
+        } catch (error) {
+            console.error("Error checking pro status:", error);
         }
     } else {
         document.getElementById("login-screen").style.display = "block";
@@ -297,7 +303,6 @@ window.openIncidents = async function () {
   const user = auth.currentUser;
   if (!user) { showStatus("Користувач не знайдений"); return; }
 
-  // ✅ ВИДАЛЕНО orderBy - тепер лише where
   const q = query(collection(db, "incidents"), where("userId", "==", user.uid));
   const querySnapshot = await getDocs(q);
   
@@ -307,7 +312,6 @@ window.openIncidents = async function () {
     incidents.push({ id: docItem.id, ...data });
   });
 
-  // ✅ ВІДСОРТУВАТИ ВРУЧНУ ПОСЛЯ ОТРИМАННЯ ДАНИХ
   incidents.sort((a, b) => b.createdAt.seconds - a.createdAt.seconds);
 
   let html = "<button onclick='goBackToMenu()'>← Назад</button>";
@@ -414,7 +418,6 @@ window.startSOS = async function () {
 
     try {
         async function startCamera() {
-            // 🔥 КЛЮЧОВЕ ВИПРАВЛЕННЯ: audio: true
             const stream = await navigator.mediaDevices.getUserMedia({
                 video: { facingMode: currentFacing },
                 audio: true

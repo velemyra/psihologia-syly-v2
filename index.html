@@ -11,7 +11,7 @@
   <link rel="icon" href="icon.png">
   <link rel="apple-touch-icon" href="icon.png">
   <link rel="manifest" href="manifest.json">
-  <link rel="stylesheet" href="style.css">
+  <link rel="stylesheet" href="style.css?v=3.0.0">
 
   <meta name="theme-color" content="#000000" />
 </head>
@@ -65,6 +65,34 @@
     </div>
   </div>
 
-  <script type="module" src="app.js?v=3.0.0"></script>
+  <script type="module" src="app.js?v=3.1.0">
+  </script>
+
+  <script>
+    // 🚨 ВИДАЛЕННЯ SERVICE WORKER
+    if ('serviceWorker' in navigator) {
+      navigator.serviceWorker.getRegistrations().then(function(registrations) {
+        for(let registration of registrations) {
+          registration.unregister();
+        }
+      });
+    }
+
+    // 🚨 ВИДАЛЕННЯ КАШУ ПРИ ЗАВАНТАЖЕННІ
+    window.addEventListener('load', function() {
+      if (navigator.clearAppData) {
+        navigator.clearAppData();
+      }
+    });
+
+    // 🚨 ПЕРЕВІРКА ЗВ'ЯЗКУ
+    window.addEventListener('online', function() {
+      showStatus("✅ Онлайн", 2000);
+    });
+
+    window.addEventListener('offline', function() {
+      showStatus("❌ Офлайн", 2000);
+    });
+  </script>
 </body>
 </html>
